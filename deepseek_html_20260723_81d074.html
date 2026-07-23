@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>FinTrackr · BDT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #f5f7fb;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        .balance-badge {
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 40px;
+            padding: 4px 14px;
+            font-size: 0.8rem;
+        }
+        .negative {
+            color: #d0304a;
+        }
+        .positive {
+            color: #1a8c4a;
+        }
+        .service-charge {
+            color: #c92a4a;
+            font-weight: 600;
+        }
+        .lost-charge {
+            color: #b33c5a;
+            font-weight: 600;
+        }
+        .transaction-item {
+            transition: all 0.1s ease;
+            cursor: pointer;
+        }
+        .transaction-item:active {
+            background: #f0f3f9;
+        }
+        .pin-dot {
+            letter-spacing: 6px;
+            font-family: monospace;
+        }
+        .logo-symbol {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+        }
+        .theme-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .theme-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 30px;
+            border: 2px solid transparent;
+            transition: 0.1s;
+            cursor: pointer;
+        }
+        .theme-dot.active {
+            border-color: #0f172a;
+            transform: scale(1.1);
+        }
+        input,
+        select,
+        textarea {
+            background: white;
+            border: 1px solid #e9edf2;
+            border-radius: 16px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            width: 100%;
+            transition: 0.1s;
+        }
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #94a3b8;
+            box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05);
+        }
+        .btn-primary {
+            background: #0f172a;
+            color: white;
+            border-radius: 40px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: 0.1s;
+            border: none;
+        }
+        .btn-primary:active {
+            opacity: 0.7;
+            transform: scale(0.97);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #d1d9e6;
+            border-radius: 40px;
+            padding: 10px 20px;
+        }
+        .card-item {
+            background: white;
+            border-radius: 28px;
+            padding: 20px;
+            margin-bottom: 14px;
+            border: 1px solid #f0f4fe;
+        }
+        .bg-soft {
+            background: #f8faff;
+        }
+        .tab-active {
+            border-bottom: 3px solid #0f172a;
+            padding-bottom: 6px;
+            font-weight: 500;
+        }
+        .actual-balance-input {
+            background: #f8faff;
+            border: 1px dashed #b9c4d4;
+        }
+        .pin-visible {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            letter-spacing: 2px;
+            background: #f1f4f9;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .login-animate {
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+        .logo-pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        .credit-footer {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-align: center;
+            padding: 16px 0 4px 0;
+            border-top: 1px solid #e9edf2;
+            margin-top: 8px;
+        }
+        .tx-detail {
+            background: #f8faff;
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin: 4px 0;
+            font-size: 0.85rem;
+        }
+        .tx-detail-label {
+            color: #64748b;
+            font-weight: 500;
+            min-width: 70px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="max-w-md mx-auto px-4 py-6 pb-24 relative min-h-screen" style="background: #f5f7fb;">
+
+        <!-- LOGIN SCREEN -->
+        <div id="loginScreen" class="flex flex-col items-center justify-center min-h-[80vh]">
+            <div class="w-full max-w-sm bg-white p-8 rounded-3xl card-shadow login-animate">
+                <div class="flex justify-center mb-4">
+                    <div class="logo-symbol logo-pulse"><i class="fas fa-coins"></i></div>
+                </div>
+                <h2 class="text-2xl font-semibold text-center text-slate-800">FinTrackr</h2>
+                <p class="text-sm text-slate-400 text-center">by XED Tech.</p>
+                <p class="text-xs text-slate-300 text-center mb-6">transaction tracker</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-medium text-slate-500 uppercase tracking-wide">Code</label>
+                        <input type="text" id="loginCode" placeholder="your code" class="mt-1" value="demo">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-slate-500 uppercase tracking-wide">Password</label>
+                        <input type="password" id="loginPassword" placeholder="••••••" class="mt-1" value="1234">
+                    </div>
+                    <button id="loginBtn" class="btn-primary w-full mt-2"><i class="fas fa-arrow-right mr-2"></i>Unlock</button>
+                    <p class="text-xs text-center text-slate-400 mt-2">default: demo / 1234</p>
+                </div>
+                <div class="credit-footer mt-6">
+                    Product of XED Tech.
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN APP -->
+        <div id="appScreen" class="hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="logo-symbol"><i class="fas fa-coins"></i></div>
+                    <span class="text-xl font-semibold text-slate-800">FinTrackr</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="themeToggleBtn" class="text-slate-500 text-sm bg-white/70 p-2 rounded-full card-shadow"><i class="fas fa-palette"></i></button>
+                    <button id="logoutBtn" class="text-slate-400 text-sm"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+
+            <!-- Theme picker -->
+            <div id="themePicker" class="bg-white p-4 rounded-2xl card-shadow mb-4 hidden">
+                <p class="text-xs font-medium text-slate-500 mb-2">choose accent color</p>
+                <div class="theme-picker" id="themeColorOptions">
+                    <div class="theme-dot active" style="background:#0f172a;" data-color="#0f172a"></div>
+                    <div class="theme-dot" style="background:#2563eb;" data-color="#2563eb"></div>
+                    <div class="theme-dot" style="background:#7c3aed;" data-color="#7c3aed"></div>
+                    <div class="theme-dot" style="background:#0d9488;" data-color="#0d9488"></div>
+                    <div class="theme-dot" style="background:#d946ef;" data-color="#d946ef"></div>
+                    <div class="theme-dot" style="background:#ea580c;" data-color="#ea580c"></div>
+                </div>
+            </div>
+
+            <!-- ADD BUTTONS -->
+            <div class="grid grid-cols-3 gap-2 mb-6">
+                <button id="addCardBtn" class="bg-white p-3 rounded-2xl card-shadow flex flex-col items-center"><i class="fas fa-credit-card text-xl text-slate-700"></i><span class="text-xs mt-1">Card</span></button>
+                <button id="addMobileBtn" class="bg-white p-3 rounded-2xl card-shadow flex flex-col items-center"><i class="fas fa-mobile-alt text-xl text-slate-700"></i><span class="text-xs mt-1">Mobile</span></button>
+                <button id="addWalletBtn" class="bg-white p-3 rounded-2xl card-shadow flex flex-col items-center"><i class="fas fa-wallet text-xl text-slate-700"></i><span class="text-xs mt-1">Wallet</span></button>
+            </div>
+
+            <!-- ACCOUNT LIST -->
+            <div id="accountList" class="space-y-4">
+                <!-- dynamic -->
+            </div>
+
+            <!-- Credit Footer -->
+            <div class="credit-footer mt-8">
+                Product of XED Tech.
+            </div>
+
+            <!-- MODAL -->
+            <div id="modalOverlay" class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end justify-center z-50 hidden">
+                <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-8 max-h-[90vh] overflow-y-auto" id="modalContent">
+                    <!-- dynamic -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ----- hardcoded credentials -----
+            const VALID_CODE = 'demo';
+            const VALID_PWD = '1234';
+
+            // ----- state with localStorage persistence -----
+            let accounts = [];
+            let nextId = 1;
+            let currentTheme = '#0f172a';
+
+            // Load data from localStorage
+            function loadData() {
+                try {
+                    const saved = localStorage.getItem('fintrackr_data');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        accounts = data.accounts || [];
+                        nextId = data.nextId || 1;
+                        currentTheme = data.currentTheme || '#0f172a';
+                        return true;
+                    }
+                } catch (e) {
+                    console.warn('Failed to load data', e);
+                }
+                return false;
+            }
+
+            // Save data to localStorage
+            function saveData() {
+                try {
+                    const data = {
+                        accounts: accounts,
+                        nextId: nextId,
+                        currentTheme: currentTheme
+                    };
+                    localStorage.setItem('fintrackr_data', JSON.stringify(data));
+                } catch (e) {
+                    console.warn('Failed to save data', e);
+                }
+            }
+
+            // Load data on startup
+            loadData();
+
+            // DOM refs
+            const loginScreen = document.getElementById('loginScreen');
+            const appScreen = document.getElementById('appScreen');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const addCardBtn = document.getElementById('addCardBtn');
+            const addMobileBtn = document.getElementById('addMobileBtn');
+            const addWalletBtn = document.getElementById('addWalletBtn');
+            const accountList = document.getElementById('accountList');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalContent = document.getElementById('modalContent');
+            const themePicker = document.getElementById('themePicker');
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+            // helpers
+            function formatBDT(amount) {
+                return '৳ ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
+                amount);
+            }
+
+            function getAccount(id) { return accounts.find(a => a.id === id); }
+
+            // recalc balance
+            function recalcBalance(acc) {
+                let bal = acc.openingBalance || 0;
+                (acc.transactions || []).forEach(tx => {
+                    if (tx.type === 'cashin') bal += tx.amount;
+                    else if (tx.type === 'cashout') bal -= (tx.amount + (tx.extraCharge || 0));
+                    else if (tx.type === 'cashpayment') bal -= (tx.amount + (tx.extraCharge || 0));
+                    else if (tx.type === 'onlinepayment') bal -= (tx.amount + (tx.extraCharge || 0));
+                });
+                acc.calculatedBalance = bal;
+                if (acc.actualBalance !== undefined && acc.actualBalance !== null && acc.actualBalance !== '') {
+                    if (acc.type === 'card' || acc.type === 'mobile') {
+                        acc.serviceCharge = acc.actualBalance - acc.calculatedBalance;
+                    } else if (acc.type === 'wallet') {
+                        acc.lostInTransaction = acc.actualBalance - acc.calculatedBalance;
+                    }
+                } else {
+                    if (acc.type === 'card' || acc.type === 'mobile') {
+                        acc.serviceCharge = (acc.openingBalance || 0) - acc.calculatedBalance;
+                    } else if (acc.type === 'wallet') {
+                        acc.lostInTransaction = (acc.openingBalance || 0) - acc.calculatedBalance;
+                    }
+                }
+                return bal;
+            }
+
+            // render all accounts
+            function renderAccounts() {
+                if (!accountList) return;
+                if (accounts.length === 0) {
+                    accountList.innerHTML =
+                        `<div class="text-center text-slate-400 text-sm py-10 bg-white/60 rounded-3xl"><i class="fas fa-plus-circle text-2xl block mb-2"></i>Add your first account</div>`;
+                    return;
+                }
+                let html = '';
+                accounts.forEach(acc => {
+                    recalcBalance(acc);
+                    const bal = acc.calculatedBalance;
+                    const isCard = acc.type === 'card';
+                    const isMobile = acc.type === 'mobile';
+                    const isWallet = acc.type === 'wallet';
+                    let diff = 0,
+                        diffLabel = '';
+                    if (isCard || isMobile) {
+                        diff = acc.serviceCharge || 0;
+                        diffLabel = 'service charge';
+                    } else if (isWallet) {
+                        diff = acc.lostInTransaction || 0;
+                        diffLabel = 'lost in tx';
+                    }
+                    const themeColor = acc.theme || currentTheme;
+                    html += `<div class="card-item relative" style="border-left: 6px solid ${themeColor};">`;
+                    html += `<div class="flex justify-between items-start">`;
+                    html += `<div><div class="flex items-center gap-2 flex-wrap"><span class="text-lg font-medium">${acc.name || 'Account'}</span>`;
+                    if (acc.last4) html += `<span class="text-xs bg-slate-100 px-2 py-0.5 rounded-full">••${acc.last4}</span>`;
+                    if (acc.pin) html +=
+                        `<span class="pin-visible text-xs"><i class="fas fa-key mr-1 text-slate-400"></i>${acc.pin}</span>`;
+                    html += `</div><div class="text-xs text-slate-400 mt-0.5">${acc.type.toUpperCase()}</div></div>`;
+                    html += `<div class="flex gap-1"><button class="tx-add-btn text-xs bg-slate-100 px-3 py-1 rounded-full" data-id="${acc.id}"><i class="fas fa-plus mr-1"></i>tx</button>`;
+                    html +=
+                        `<button class="edit-account-btn text-xs text-slate-400 px-2" data-id="${acc.id}"><i class="fas fa-edit"></i></button></div></div>`;
+
+                    // Balance display
+                    html += `<div class="flex flex-col gap-1 mt-3">`;
+                    html +=
+                        `<div class="flex justify-between items-center"><span class="text-sm font-medium">Calculated Balance</span><span class="text-xl font-semibold">${formatBDT(bal)}</span></div>`;
+                    const actualVal = (acc.actualBalance !== undefined && acc.actualBalance !== null && acc.actualBalance !==
+                        '') ? acc.actualBalance : '';
+                    html +=
+                        `<div class="flex justify-between items-center bg-slate-50 p-2 rounded-xl"><span class="text-sm text-slate-500">Actual balance (bank app)</span>`;
+                    html +=
+                        `<input type="number" class="actual-balance-input w-32 text-right text-sm font-medium p-1 rounded-lg" data-accid="${acc.id}" value="${actualVal}" placeholder="enter" step="0.01" />`;
+                    html += `</div></div>`;
+
+                    if (acc.actualBalance !== undefined && acc.actualBalance !== null && acc.actualBalance !== '') {
+                        const diffVal = acc.actualBalance - bal;
+                        const diffColor = diffVal < 0 ? 'service-charge' : 'positive';
+                        html +=
+                            `<div class="flex justify-between text-xs mt-1 ${diffColor}"><span>${diffLabel}</span><span>${formatBDT(diffVal)}</span></div>`;
+                    } else {
+                        html +=
+                            `<div class="flex justify-between text-xs mt-1 text-slate-400"><span>${diffLabel}</span><span>—</span></div>`;
+                    }
+
+                    // Transactions list - now with click to expand
+                    if (acc.transactions && acc.transactions.length) {
+                        html += `<div class="mt-3 space-y-1 border-t border-slate-100 pt-2">`;
+                        const sorted = [...acc.transactions].reverse();
+                        sorted.forEach((tx, index) => {
+                            const originalIndex = acc.transactions.indexOf(tx);
+                            let sign = '';
+                            let color = 'text-slate-700';
+                            let amount = tx.amount;
+                            if (tx.type === 'cashin') { sign = '+';
+                                color = 'positive'; } else if (tx.type === 'cashout') { sign = '-';
+                                color = 'negative'; } else if (tx.type === 'cashpayment') { sign = '-';
+                                color = 'negative'; } else if (tx.type === 'onlinepayment') { sign = '-';
+                                color = 'negative'; }
+                            const label = tx.type.replace('cash', '').replace('payment', ' pay');
+                            const shortDesc = tx.purpose || tx.source || tx.to || '';
+                            html +=
+                                `<div class="transaction-item py-1 px-2 rounded-xl hover:bg-slate-50" data-accid="${acc.id}" data-txindex="${originalIndex}">`;
+                            html +=
+                                `<div class="flex justify-between"><span>${tx.date || ''} <span class="text-slate-400 text-xs">${label}</span> <span class="text-slate-600 text-sm">${shortDesc.length > 20 ? shortDesc.substring(0,20)+'...' : shortDesc}</span></span><span class="${color} font-medium">${sign}${formatBDT(Math.abs(amount))}</span></div>`;
+                            // Hidden details - shown on click
+                            html +=
+                                `<div class="tx-detail hidden mt-1 space-y-1" id="tx-detail-${acc.id}-${originalIndex}">`;
+                            html +=
+                                `<div><span class="tx-detail-label">Type:</span> ${tx.type.toUpperCase()}</div>`;
+                            html += `<div><span class="tx-detail-label">Date:</span> ${tx.date || 'N/A'}</div>`;
+                            if (tx.source) html +=
+                                `<div><span class="tx-detail-label">From:</span> ${tx.source}</div>`;
+                            if (tx.to) html += `<div><span class="tx-detail-label">To:</span> ${tx.to}</div>`;
+                            if (tx.purpose) html +=
+                                `<div><span class="tx-detail-label">Purpose:</span> ${tx.purpose}</div>`;
+                            html +=
+                                `<div><span class="tx-detail-label">Amount:</span> ${formatBDT(tx.amount)}</div>`;
+                            if (tx.extraCharge) html +=
+                                `<div><span class="tx-detail-label">Extra:</span> ${formatBDT(tx.extraCharge)}</div>`;
+                            html +=
+                                `<button class="edit-tx-btn text-xs text-blue-600 mt-1" data-accid="${acc.id}" data-txindex="${originalIndex}"><i class="fas fa-edit mr-1"></i>Edit</button>`;
+                            html += `</div>`;
+                            html += `</div>`;
+                        });
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                });
+                accountList.innerHTML = html;
+
+                // Attach events
+                document.querySelectorAll('.tx-add-btn').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = parseInt(el.dataset.id);
+                        openTransactionModal(id);
+                    });
+                });
+
+                document.querySelectorAll('.edit-account-btn').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = parseInt(el.dataset.id);
+                        openEditAccountModal(id);
+                    });
+                });
+
+                // Click to expand transaction details
+                document.querySelectorAll('.transaction-item').forEach(el => {
+                    el.addEventListener('click', function(e) {
+                        // Don't toggle if clicking edit button
+                        if (e.target.closest('.edit-tx-btn')) return;
+                        const detailId = this.querySelector('.tx-detail')?.id;
+                        if (detailId) {
+                            const detail = document.getElementById(detailId);
+                            if (detail) {
+                                detail.classList.toggle('hidden');
+                            }
+                        }
+                    });
+                });
+
+                // Edit transaction buttons
+                document.querySelectorAll('.edit-tx-btn').forEach(el => {
+                    el.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const accId = parseInt(this.dataset.accid);
+                        const txIndex = parseInt(this.dataset.txindex);
+                        openEditTransactionModal(accId, txIndex);
+                    });
+                });
+
+                document.querySelectorAll('.actual-balance-input').forEach(inp => {
+                    inp.addEventListener('change', function() {
+                        const accId = parseInt(this.dataset.accid);
+                        const acc = getAccount(accId);
+                        if (!acc) return;
+                        const val = parseFloat(this.value);
+                        if (!isNaN(val) && val !== null) {
+                            acc.actualBalance = val;
+                        } else {
+                            acc.actualBalance = undefined;
+                        }
+                        recalcBalance(acc);
+                        saveData();
+                        renderAccounts();
+                    });
+                });
+            }
+
+            // ----- MODAL: add account -----
+            function openAddAccountModal(type) {
+                const isCard = type === 'card';
+                const isMobile = type === 'mobile';
+                const isWallet = type === 'wallet';
+                let html = `<div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">Add ${type}</h3><button class="closeModalBtn text-slate-400"><i class="fas fa-times"></i></button></div>`;
+                html += `<div class="space-y-3">`;
+                html +=
+                    `<div><label class="text-xs font-medium">Name</label><input id="accName" placeholder="${type} name" value="${type} ${accounts.length+1}" /></div>`;
+                if (isCard || isMobile) {
+                    html +=
+                        `<div><label class="text-xs font-medium">Last 4 digits</label><input id="accLast4" placeholder="1234" maxlength="4" /></div>`;
+                    html +=
+                        `<div><label class="text-xs font-medium">PIN (visible for your reference)</label><input id="accPin" placeholder="e.g. 1234" type="text" /></div>`;
+                }
+                html +=
+                    `<div><label class="text-xs font-medium">Opening balance?</label><div class="flex gap-4"><label><input type="radio" name="hasOpening" value="yes" checked> Yes</label><label><input type="radio" name="hasOpening" value="no"> No</label></div></div>`;
+                html +=
+                    `<div id="openingBalanceField"><label class="text-xs font-medium">Opening balance</label><input id="accOpening" type="number" placeholder="0.00" value="0" /></div>`;
+                html += `<div><label class="text-xs font-medium">Theme color</label><div class="flex gap-2 flex-wrap">`;
+                ['#0f172a', '#2563eb', '#7c3aed', '#0d9488', '#d946ef', '#ea580c'].forEach(c => {
+                    html +=
+                        `<div class="theme-dot ${currentTheme===c?'active':''}" style="background:${c};" data-color="${c}"></div>`;
+                });
+                html += `</div></div>`;
+                html += `<button id="saveAccountBtn" class="btn-primary w-full mt-2">Add ${type}</button>`;
+                html += `</div>`;
+                modalContent.innerHTML = html;
+                modalOverlay.classList.remove('hidden');
+
+                modalContent.querySelectorAll('.theme-dot').forEach(dot => {
+                    dot.addEventListener('click', function() {
+                        modalContent.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+                modalContent.querySelectorAll('input[name="hasOpening"]').forEach(el => {
+                    el.addEventListener('change', function() {
+                        const field = document.getElementById('openingBalanceField');
+                        if (this.value === 'yes') field.style.display = 'block';
+                        else field.style.display = 'none';
+                    });
+                });
+                modalContent.querySelector('.closeModalBtn').addEventListener('click', closeModal);
+                document.getElementById('saveAccountBtn').addEventListener('click', function() {
+                    const name = document.getElementById('accName').value || `${type} ${accounts.length+1}`;
+                    const last4 = document.getElementById('accLast4')?.value || '';
+                    const pin = document.getElementById('accPin')?.value || '';
+                    const hasOpening = document.querySelector('input[name="hasOpening"]:checked').value === 'yes';
+                    const opening = hasOpening ? parseFloat(document.getElementById('accOpening').value) || 0 : 0;
+                    let theme = currentTheme;
+                    const activeDot = modalContent.querySelector('.theme-dot.active');
+                    if (activeDot) theme = activeDot.dataset.color;
+                    const newAcc = {
+                        id: nextId++,
+                        type: type,
+                        name: name,
+                        last4: last4,
+                        pin: pin,
+                        openingBalance: opening,
+                        calculatedBalance: opening,
+                        actualBalance: undefined,
+                        transactions: [],
+                        theme: theme,
+                        serviceCharge: 0,
+                        lostInTransaction: 0
+                    };
+                    accounts.push(newAcc);
+                    saveData();
+                    closeModal();
+                    renderAccounts();
+                });
+            }
+
+            function openTransactionModal(accountId) {
+                const acc = getAccount(accountId);
+                if (!acc) return;
+                let html = `<div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">Add tx · ${acc.name}</h3><button class="closeModalBtn text-slate-400"><i class="fas fa-times"></i></button></div>`;
+                html += `<div class="space-y-3">`;
+                html += `<div><label class="text-xs font-medium">Type</label><select id="txType">`;
+                html +=
+                    `<option value="cashin">Cash In</option><option value="cashout">Cash Out</option><option value="cashpayment">Cash Payment</option><option value="onlinepayment">Online Payment</option>`;
+                html += `</select></div>`;
+                html +=
+                    `<div><label class="text-xs font-medium">Date</label><input id="txDate" type="date" value="${new Date().toISOString().slice(0,10)}" /></div>`;
+                html +=
+                    `<div id="txSourceField"><label class="text-xs font-medium">From / To / Purpose</label><input id="txSource" placeholder="source, account or purpose" /></div>`;
+                html +=
+                    `<div><label class="text-xs font-medium">Amount</label><input id="txAmount" type="number" placeholder="0.00" /></div>`;
+                html +=
+                    `<div id="txExtraField"><label class="text-xs font-medium">Extra charge (if any)</label><input id="txExtra" type="number" placeholder="0.00" value="0" /></div>`;
+                html += `<button id="saveTxBtn" class="btn-primary w-full mt-2">Add transaction</button>`;
+                html += `</div>`;
+                modalContent.innerHTML = html;
+                modalOverlay.classList.remove('hidden');
+
+                document.getElementById('txType').addEventListener('change', function() {
+                    const val = this.value;
+                    const label = document.querySelector('#txSourceField label');
+                    if (val === 'cashin') label.textContent = 'From (source)';
+                    else if (val === 'cashout') label.textContent = 'To (account)';
+                    else label.textContent = 'Purpose';
+                });
+                document.querySelector('.closeModalBtn').addEventListener('click', closeModal);
+                document.getElementById('saveTxBtn').addEventListener('click', function() {
+                    const type = document.getElementById('txType').value;
+                    const date = document.getElementById('txDate').value;
+                    const source = document.getElementById('txSource').value;
+                    const amount = parseFloat(document.getElementById('txAmount').value) || 0;
+                    const extra = parseFloat(document.getElementById('txExtra').value) || 0;
+                    if (!amount) { alert('enter amount'); return; }
+                    const tx = { type, date, amount, extraCharge: extra };
+                    if (type === 'cashin') tx.source = source;
+                    else if (type === 'cashout') tx.to = source;
+                    else tx.purpose = source;
+                    acc.transactions.push(tx);
+                    recalcBalance(acc);
+                    saveData();
+                    closeModal();
+                    renderAccounts();
+                });
+            }
+
+            function openEditTransactionModal(accountId, txIndex) {
+                const acc = getAccount(accountId);
+                if (!acc) return;
+                const tx = acc.transactions[txIndex];
+                if (!tx) return;
+
+                let html = `<div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">Edit Transaction</h3><button class="closeModalBtn text-slate-400"><i class="fas fa-times"></i></button></div>`;
+                html += `<div class="space-y-3">`;
+                html += `<div><label class="text-xs font-medium">Type</label><select id="editTxType">`;
+                html +=
+                    `<option value="cashin" ${tx.type==='cashin'?'selected':''}>Cash In</option><option value="cashout" ${tx.type==='cashout'?'selected':''}>Cash Out</option><option value="cashpayment" ${tx.type==='cashpayment'?'selected':''}>Cash Payment</option><option value="onlinepayment" ${tx.type==='onlinepayment'?'selected':''}>Online Payment</option>`;
+                html += `</select></div>`;
+                html +=
+                    `<div><label class="text-xs font-medium">Date</label><input id="editTxDate" type="date" value="${tx.date || ''}" /></div>`;
+                const currentVal = tx.source || tx.to || tx.purpose || '';
+                html +=
+                    `<div id="editTxSourceField"><label class="text-xs font-medium">${tx.source?'From':tx.to?'To':'Purpose'}</label><input id="editTxSource" placeholder="source, account or purpose" value="${currentVal}" /></div>`;
+                html +=
+                    `<div><label class="text-xs font-medium">Amount</label><input id="editTxAmount" type="number" placeholder="0.00" value="${tx.amount}" /></div>`;
+                html +=
+                    `<div><label class="text-xs font-medium">Extra charge</label><input id="editTxExtra" type="number" placeholder="0.00" value="${tx.extraCharge || 0}" /></div>`;
+                html +=
+                    `<button id="saveEditTxBtn" class="btn-primary w-full mt-2">Update Transaction</button>`;
+                html +=
+                    `<button id="deleteTxBtn" class="btn-outline w-full mt-2 text-red-600 border-red-200">Delete Transaction</button>`;
+                html += `</div>`;
+                modalContent.innerHTML = html;
+                modalOverlay.classList.remove('hidden');
+
+                document.getElementById('editTxType').addEventListener('change', function() {
+                    const val = this.value;
+                    const label = document.querySelector('#editTxSourceField label');
+                    if (val === 'cashin') label.textContent = 'From (source)';
+                    else if (val === 'cashout') label.textContent = 'To (account)';
+                    else label.textContent = 'Purpose';
+                });
+
+                document.querySelector('.closeModalBtn').addEventListener('click', closeModal);
+
+                document.getElementById('saveEditTxBtn').addEventListener('click', function() {
+                    const type = document.getElementById('editTxType').value;
+                    const date = document.getElementById('editTxDate').value;
+                    const source = document.getElementById('editTxSource').value;
+                    const amount = parseFloat(document.getElementById('editTxAmount').value) || 0;
+                    const extra = parseFloat(document.getElementById('editTxExtra').value) || 0;
+                    if (!amount) { alert('enter amount'); return; }
+                    tx.type = type;
+                    tx.date = date;
+                    tx.amount = amount;
+                    tx.extraCharge = extra;
+                    if (type === 'cashin') { tx.source = source;
+                        delete tx.to;
+                        delete tx.purpose; } else if (type === 'cashout') { tx.to = source;
+                        delete tx.source;
+                        delete tx.purpose; } else { tx.purpose = source;
+                        delete tx.source;
+                        delete tx.to; }
+                    recalcBalance(acc);
+                    saveData();
+                    closeModal();
+                    renderAccounts();
+                });
+
+                document.getElementById('deleteTxBtn').addEventListener('click', function() {
+                    if (confirm('Delete this transaction?')) {
+                        acc.transactions.splice(txIndex, 1);
+                        recalcBalance(acc);
+                        saveData();
+                        closeModal();
+                        renderAccounts();
+                    }
+                });
+            }
+
+            function openEditAccountModal(accountId) {
+                const acc = getAccount(accountId);
+                if (!acc) return;
+                let html = `<div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">Edit ${acc.type}</h3><button class="closeModalBtn text-slate-400"><i class="fas fa-times"></i></button></div>`;
+                html += `<div class="space-y-3"><div><label class="text-xs font-medium">Name</label><input id="editName" value="${acc.name}" /></div>`;
+                if (acc.last4 !== undefined) html +=
+                    `<div><label class="text-xs font-medium">Last 4</label><input id="editLast4" value="${acc.last4}" maxlength="4" /></div>`;
+                if (acc.pin !== undefined) html +=
+                    `<div><label class="text-xs font-medium">PIN (visible)</label><input id="editPin" value="${acc.pin || ''}" type="text" /></div>`;
+                html +=
+                    `<div><label class="text-xs font-medium">Opening balance</label><input id="editOpening" type="number" value="${acc.openingBalance}" /></div>`;
+                html +=
+                    `<button id="saveEditBtn" class="btn-primary w-full mt-2">Update</button>`;
+                html +=
+                    `<button id="deleteAccountBtn" class="btn-outline w-full mt-2 text-red-600 border-red-200">Delete Account</button>`;
+                html += `</div>`;
+                modalContent.innerHTML = html;
+                modalOverlay.classList.remove('hidden');
+                document.querySelector('.closeModalBtn').addEventListener('click', closeModal);
+
+                document.getElementById('saveEditBtn').addEventListener('click', function() {
+                    acc.name = document.getElementById('editName').value || acc.name;
+                    if (document.getElementById('editLast4')) acc.last4 = document.getElementById('editLast4').value;
+                    if (document.getElementById('editPin')) acc.pin = document.getElementById('editPin').value;
+                    const newOpen = parseFloat(document.getElementById('editOpening').value) || 0;
+                    acc.openingBalance = newOpen;
+                    recalcBalance(acc);
+                    saveData();
+                    closeModal();
+                    renderAccounts();
+                });
+
+                document.getElementById('deleteAccountBtn').addEventListener('click', function() {
+                    if (confirm(`Delete account "${acc.name}" and all transactions?`)) {
+                        const index = accounts.indexOf(acc);
+                        if (index > -1) {
+                            accounts.splice(index, 1);
+                            saveData();
+                            closeModal();
+                            renderAccounts();
+                        }
+                    }
+                });
+            }
+
+            function closeModal() {
+                modalOverlay.classList.add('hidden');
+            }
+
+            // login
+            loginBtn.addEventListener('click', function() {
+                const code = document.getElementById('loginCode').value;
+                const pwd = document.getElementById('loginPassword').value;
+                if (code === VALID_CODE && pwd === VALID_PWD) {
+                    loginScreen.style.display = 'none';
+                    appScreen.classList.remove('hidden');
+                    renderAccounts();
+                } else {
+                    alert('invalid code or password');
+                }
+            });
+
+            logoutBtn.addEventListener('click', function() {
+                loginScreen.style.display = 'flex';
+                appScreen.classList.add('hidden');
+            });
+
+            addCardBtn.addEventListener('click', () => openAddAccountModal('card'));
+            addMobileBtn.addEventListener('click', () => openAddAccountModal('mobile'));
+            addWalletBtn.addEventListener('click', () => openAddAccountModal('wallet'));
+
+            themeToggleBtn.addEventListener('click', function() {
+                themePicker.classList.toggle('hidden');
+            });
+            document.querySelectorAll('#themeColorOptions .theme-dot').forEach(dot => {
+                dot.addEventListener('click', function() {
+                    document.querySelectorAll('#themeColorOptions .theme-dot').forEach(d => d.classList.remove(
+                    'active'));
+                    this.classList.add('active');
+                    currentTheme = this.dataset.color;
+                    saveData();
+                    renderAccounts();
+                });
+            });
+
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) closeModal();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeModal();
+            });
+
+            // Apply theme from saved data
+            if (currentTheme) {
+                document.querySelectorAll('#themeColorOptions .theme-dot').forEach(dot => {
+                    if (dot.dataset.color === currentTheme) {
+                        dot.classList.add('active');
+                    } else {
+                        dot.classList.remove('active');
+                    }
+                });
+            }
+
+            renderAccounts();
+
+            // Instructions for deployment
+            console.log('📱 FinTrackr is ready!');
+            console.log('To deploy on Vercel:');
+            console.log('1. Create a GitHub repository');
+            console.log('2. Upload this HTML file as index.html');
+            console.log('3. Go to vercel.com and import your repository');
+            console.log('4. Deploy! Your app will be live.');
+            console.log('5. To use as a mobile app, open the Vercel URL on your phone and "Add to Home Screen"');
+        })();
+    </script>
+</body>
+</html>
